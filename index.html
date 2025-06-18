@@ -3,32 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IoT Device Monitoring Dashboard</title>
+  <title>IoT Device Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <style>
-    .error-boundary { color: red; padding: 20px; text-align: center; }
-    .loading { text-align: center; padding: 20px; }
-  </style>
 </head>
-<body>
-  <div id="root"><div class="loading">Loading...</div></div>
+<body class="bg-gray-100 text-gray-900">
+  <div id="root" class="p-4">Loading...</div>
 
-  <!-- Scripts -->
+  <!-- React + Firebase -->
   <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-router-dom@6.26.2/dist/umd/react-router-dom.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/Babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
 
   <script type="text/babel">
 
     const { useState, useEffect } = React;
-    const { BrowserRouter, Routes, Route, Link, useParams } = ReactRouterDOM;
-    const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = Recharts;
+    const { BrowserRouter, Routes, Route, Link } = ReactRouterDOM;
 
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDcRpos41afSTVavx3ZqFECcGW-2phqhNQ",
       authDomain: "sensor-monitoring-a093a.firebaseapp.com",
@@ -39,172 +34,109 @@
       appId: "1:660525836251:web:6281777b8417b22c1a29fe"
     };
 
-    let database;
-    try {
-      const app = firebase.initializeApp(firebaseConfig);
-      database = firebase.database();
-    } catch (error) {
-      console.error("Firebase init failed:", error);
-      document.getElementById('root').innerHTML = '<div class="error-boundary">Firebase init failed. Check config.</div>';
-    }
-
-    const formatTimestamp = (timestamp) => {
-      return timestamp ? timestamp.replace(/T/, ' ').replace(/-/g, ':') : 'N/A';
-    };
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
     function HomePage() {
-      const [devices, setDevices] = useState([]);
-      const [error, setError] = useState(null);
-
-      useEffect(() => {
-        if (!database) {
-          setError("Firebase database not initialized.");
-          return;
-        }
-        const devicesRef = database.ref('sensordata');
-        devicesRef.on('value', (snapshot) => {
-          try {
-            const deviceData = snapshot.val();
-            if (deviceData) {
-              const deviceList = Object.keys(deviceData).map(id => ({
-                id,
-                name: id,
-                status: 'online', // or add your own logic
-                lastDataTimestamp: Object.keys(deviceData[id]).slice(-1)[0]
-              }));
-              setDevices(deviceList);
-            } else {
-              setDevices([]);
-            }
-          } catch (err) {
-            setError("Failed to fetch devices: " + err.message);
-          }
-        }, (err) => {
-          setError("Database error: " + err.message);
-        });
-
-        return () => devicesRef.off();
-      }, []);
-
-      if (error) return <div className="error-boundary">{error}</div>;
-
       return (
         <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold mb-4">IoT Device Monitoring Dashboard</h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {devices.map(device => (
-              <Link to={`/device/${device.id}`} key={device.id} className="border rounded-lg p-4 hover:bg-gray-100">
-                <h2 className="text-lg font-semibold">{device.name}</h2>
-                <p>Status: 
-                  <span className={`ml-2 inline-block w-3 h-3 rounded-full ${device.status === 'online' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  <span className="ml-1">{device.status}</span>
-                </p>
-                <p>Last Data: {formatTimestamp(device.lastDataTimestamp)}</p>
-              </Link>
-            ))}
-          </div>
+          <h1 className="text-2xl font-bold mb-4">IoT Device Dashboard</h1>
+          <Link to="/device/device1" className="text-blue-500 underline">View Device 1</Link>
         </div>
       );
     }
 
     function DevicePage() {
-      const { deviceId } = useParams();
       const [sensorData, setSensorData] = useState([]);
-      const [error, setError] = useState(null);
 
       useEffect(() => {
-        if (!database) {
-          setError("Firebase database not initialized.");
-          return;
-        }
-
-        const sensorRef = database.ref(`sensordata/${deviceId}`);
-        sensorRef.on('value', (snapshot) => {
-          try {
-            const data = snapshot.val();
-            if (data) {
-              const dataList = Object.entries(data).map(([timestamp, value]) => ({
-                id: timestamp,
-                timestamp: timestamp,
-                ...value.DATA
-              }));
-              setSensorData(dataList.reverse());
-            } else {
-              setSensorData([]);
-            }
-          } catch (err) {
-            setError("Failed to fetch sensor data: " + err.message);
+        const ref = database.ref('sensordata/device1');
+        ref.on('value', (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            const entries = Object.entries(data).map(([timestamp, fields]) => ({
+              timestamp,
+              ...fields
+            }));
+            setSensorData(entries);
+          } else {
+            setSensorData([]);
           }
-        }, (err) => {
-          setError("Database error: " + err.message);
         });
-
-        return () => sensorRef.off();
-      }, [deviceId]);
+        return () => ref.off();
+      }, []);
 
       const downloadCSV = () => {
-        try {
-          const csvData = sensorData.map(data => ({
-            Timestamp: formatTimestamp(data.timestamp),
-            SensorName: data.sensorName || 'Unknown',
-            SensorValue: data.sensorValue || 'N/A'
-          }));
-          const csv = Papa.unparse(csvData);
-          const blob = new Blob([csv], { type: 'text/csv' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${deviceId}_data.csv`;
-          a.click();
-          URL.revokeObjectURL(url);
-        } catch (err) {
-          console.error("CSV download failed:", err);
-          alert("Failed to download CSV.");
-        }
+        const csvData = sensorData.map(item => ({
+          timestamp: item.timestamp,
+          mq6: item.mq6,
+          mq2: item.mq2,
+          mq135: item.mq135,
+          analog4: item.analog4,
+          battery: item.battery,
+          eco2: item.eco2,
+          tvoc: item.tvoc,
+          dhtTemp: item.dhtTemp,
+          dhtHum: item.dhtHum,
+          latitude: item.latitude,
+          longitude: item.longitude
+        }));
+        const csv = Papa.unparse(csvData);
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'device1_data.csv';
+        a.click();
+        URL.revokeObjectURL(url);
       };
-
-      if (error) return <div className="error-boundary">{error}</div>;
 
       return (
         <div className="container mx-auto p-4">
-          <Link to="/" className="text-blue-500 hover:underline mb-4 inline-block">← Back to Home</Link>
-          <h1 className="text-2xl font-bold mb-4">Device: {deviceId}</h1>
-
-          <h2 className="text-xl font-semibold mt-6 mb-2">Sensor Data</h2>
+          <Link to="/" className="text-blue-500 underline">← Back to Home</Link>
+          <h2 className="text-2xl font-bold my-4">Device 1 Data</h2>
           <button onClick={downloadCSV} className="mb-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            Download as CSV
+            Download CSV
           </button>
-          
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="border p-2 text-left">Timestamp</th>
-                  <th className="border p-2 text-left">Sensor Name</th>
-                  <th className="border p-2 text-left">Sensor Value</th>
+            <table className="table-auto w-full border border-gray-300">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="border px-2 py-1">Timestamp</th>
+                  <th className="border px-2 py-1">mq6</th>
+                  <th className="border px-2 py-1">mq2</th>
+                  <th className="border px-2 py-1">mq135</th>
+                  <th className="border px-2 py-1">analog4</th>
+                  <th className="border px-2 py-1">battery</th>
+                  <th className="border px-2 py-1">eco2</th>
+                  <th className="border px-2 py-1">tvoc</th>
+                  <th className="border px-2 py-1">dhtTemp</th>
+                  <th className="border px-2 py-1">dhtHum</th>
+                  <th className="border px-2 py-1">latitude</th>
+                  <th className="border px-2 py-1">longitude</th>
                 </tr>
               </thead>
               <tbody>
-                {sensorData.map(data => (
-                  <tr key={data.id}>
-                    <td className="border p-2">{formatTimestamp(data.timestamp)}</td>
-                    <td className="border p-2">{data.sensorName || 'Unknown'}</td>
-                    <td className="border p-2">{data.sensorValue || 'N/A'}</td>
+                {sensorData.map((item, index) => (
+                  <tr key={index} className="hover:bg-gray-100">
+                    <td className="border px-2 py-1">{item.timestamp}</td>
+                    <td className="border px-2 py-1">{item.mq6}</td>
+                    <td className="border px-2 py-1">{item.mq2}</td>
+                    <td className="border px-2 py-1">{item.mq135}</td>
+                    <td className="border px-2 py-1">{item.analog4}</td>
+                    <td className="border px-2 py-1">{item.battery}</td>
+                    <td className="border px-2 py-1">{item.eco2}</td>
+                    <td className="border px-2 py-1">{item.tvoc}</td>
+                    <td className="border px-2 py-1">{item.dhtTemp}</td>
+                    <td className="border px-2 py-1">{item.dhtHum}</td>
+                    <td className="border px-2 py-1">{item.latitude}</td>
+                    <td className="border px-2 py-1">{item.longitude}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-
-          <h2 className="text-xl font-semibold mt-6 mb-2">Sensor Data Trend</h2>
-          <LineChart width={600} height={300} data={sensorData} className="mx-auto">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="timestamp" tickFormatter={formatTimestamp} />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="sensorValue" stroke="#8884d8" />
-          </LineChart>
         </div>
       );
     }
@@ -214,19 +146,14 @@
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/device/:deviceId" element={<DevicePage />} />
+            <Route path="/device/device1" element={<DevicePage />} />
           </Routes>
         </BrowserRouter>
       );
     }
 
-    try {
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<App />);
-    } catch (error) {
-      console.error("Rendering failed:", error);
-      document.getElementById('root').innerHTML = '<div class="error-boundary">Failed to render app.</div>';
-    }
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
 
   </script>
 </body>
