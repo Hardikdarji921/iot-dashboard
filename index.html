@@ -4,26 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>IoT Device Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100 text-gray-900">
-  <div id="root" class="p-4">Loading...</div>
-
-  <!-- React + Firebase -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/react-router-dom@6.26.2/dist/umd/react-router-dom.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
+  <style>
+    .error-boundary { color: red; padding: 20px; text-align: center; }
+    .loading { text-align: center; padding: 20px; }
+  </style>
+</head>
+<body>
+  <div id="root"><div class="loading">Loading...</div></div>
 
   <script type="text/babel">
-
     const { useState, useEffect } = React;
     const { BrowserRouter, Routes, Route, Link } = ReactRouterDOM;
+    const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = Recharts;
 
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyDcRpos41afSTVavx3ZqFECcGW-2phqhNQ",
       authDomain: "sensor-monitoring-a093a.firebaseapp.com",
@@ -34,109 +36,130 @@
       appId: "1:660525836251:web:6281777b8417b22c1a29fe"
     };
 
-    // Initialize Firebase
     const app = firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    function HomePage() {
-      return (
-        <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold mb-4">IoT Device Dashboard</h1>
-          <Link to="/device/device1" className="text-blue-500 underline">View Device 1</Link>
-        </div>
-      );
+    function formatTimestamp(ts) {
+      return ts.replace("T", " ").replace(/-/g, ":").replace(/:(\d\d)$/, "-$1");
     }
 
     function DevicePage() {
+      const deviceId = 'device1';
       const [sensorData, setSensorData] = useState([]);
+      const [error, setError] = useState(null);
 
       useEffect(() => {
-        const ref = database.ref('sensordata/device1');
-        ref.on('value', (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            const entries = Object.entries(data).map(([timestamp, fields]) => ({
-              timestamp,
-              ...fields
-            }));
-            setSensorData(entries);
-          } else {
-            setSensorData([]);
+        const ref = database.ref(`sensordata/${deviceId}`);
+        ref.on('value', snapshot => {
+          try {
+            const data = snapshot.val();
+            if (data) {
+              const dataList = Object.entries(data).map(([timestamp, fields]) => ({
+                timestamp,
+                ...fields
+              }));
+              setSensorData(dataList);
+            } else {
+              setSensorData([]);
+            }
+          } catch (err) {
+            setError("Error reading data: " + err.message);
           }
+        }, err => {
+          setError("DB Error: " + err.message);
         });
+
         return () => ref.off();
       }, []);
 
       const downloadCSV = () => {
-        const csvData = sensorData.map(item => ({
-          timestamp: item.timestamp,
-          mq6: item.mq6,
-          mq2: item.mq2,
-          mq135: item.mq135,
-          analog4: item.analog4,
-          battery: item.battery,
-          eco2: item.eco2,
-          tvoc: item.tvoc,
-          dhtTemp: item.dhtTemp,
-          dhtHum: item.dhtHum,
-          latitude: item.latitude,
-          longitude: item.longitude
-        }));
-        const csv = Papa.unparse(csvData);
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'device1_data.csv';
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+          const csvData = sensorData.map(item => ({
+            timestamp: item.timestamp,
+            analog4: item.analog4,
+            battery: item.battery,
+            dhtTemp: item.dhtTemp,
+            dhtHum: item.dhtHum,
+            eco2: item.eco2,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            mq135: item.mq135,
+            mq2: item.mq2,
+            mq6: item.mq6,
+            tvoc: item.tvoc
+          }));
+          const csv = Papa.unparse(csvData);
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${deviceId}_data.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          alert("CSV download failed: " + err.message);
+        }
       };
+
+      if (error) return <div className="error-boundary">{error}</div>;
+      if (!sensorData.length) return <div className="loading">Loading data...</div>;
 
       return (
         <div className="container mx-auto p-4">
-          <Link to="/" className="text-blue-500 underline">← Back to Home</Link>
-          <h2 className="text-2xl font-bold my-4">Device 1 Data</h2>
-          <button onClick={downloadCSV} className="mb-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          <h1 className="text-2xl font-bold mb-4">Device: {deviceId}</h1>
+          <button
+            onClick={downloadCSV}
+            className="mb-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
             Download CSV
           </button>
-          <div className="overflow-x-auto">
-            <table className="table-auto w-full border border-gray-300">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="border px-2 py-1">Timestamp</th>
-                  <th className="border px-2 py-1">mq6</th>
-                  <th className="border px-2 py-1">mq2</th>
-                  <th className="border px-2 py-1">mq135</th>
-                  <th className="border px-2 py-1">analog4</th>
-                  <th className="border px-2 py-1">battery</th>
-                  <th className="border px-2 py-1">eco2</th>
-                  <th className="border px-2 py-1">tvoc</th>
-                  <th className="border px-2 py-1">dhtTemp</th>
-                  <th className="border px-2 py-1">dhtHum</th>
-                  <th className="border px-2 py-1">latitude</th>
-                  <th className="border px-2 py-1">longitude</th>
+
+          <table className="w-full border-collapse mb-6">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border p-2">Timestamp</th>
+                <th className="border p-2">Analog4</th>
+                <th className="border p-2">Battery</th>
+                <th className="border p-2">dhtTemp</th>
+                <th className="border p-2">dhtHum</th>
+                <th className="border p-2">eco2</th>
+                <th className="border p-2">Lat</th>
+                <th className="border p-2">Lon</th>
+                <th className="border p-2">mq135</th>
+                <th className="border p-2">mq2</th>
+                <th className="border p-2">mq6</th>
+                <th className="border p-2">tvoc</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sensorData.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="border p-2">{formatTimestamp(item.timestamp)}</td>
+                  <td className="border p-2">{item.analog4}</td>
+                  <td className="border p-2">{item.battery}</td>
+                  <td className="border p-2">{item.dhtTemp}</td>
+                  <td className="border p-2">{item.dhtHum}</td>
+                  <td className="border p-2">{item.eco2}</td>
+                  <td className="border p-2">{item.latitude}</td>
+                  <td className="border p-2">{item.longitude}</td>
+                  <td className="border p-2">{item.mq135}</td>
+                  <td className="border p-2">{item.mq2}</td>
+                  <td className="border p-2">{item.mq6}</td>
+                  <td className="border p-2">{item.tvoc}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {sensorData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-100">
-                    <td className="border px-2 py-1">{item.timestamp}</td>
-                    <td className="border px-2 py-1">{item.mq6}</td>
-                    <td className="border px-2 py-1">{item.mq2}</td>
-                    <td className="border px-2 py-1">{item.mq135}</td>
-                    <td className="border px-2 py-1">{item.analog4}</td>
-                    <td className="border px-2 py-1">{item.battery}</td>
-                    <td className="border px-2 py-1">{item.eco2}</td>
-                    <td className="border px-2 py-1">{item.tvoc}</td>
-                    <td className="border px-2 py-1">{item.dhtTemp}</td>
-                    <td className="border px-2 py-1">{item.dhtHum}</td>
-                    <td className="border px-2 py-1">{item.latitude}</td>
-                    <td className="border px-2 py-1">{item.longitude}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
+
+          <h2 className="text-xl font-semibold mb-2">eco2 Trend</h2>
+          <LineChart width={700} height={300} data={sensorData} className="mx-auto">
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="timestamp" tickFormatter={formatTimestamp} />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="eco2" stroke="#8884d8" />
+          </LineChart>
         </div>
       );
     }
@@ -145,16 +168,13 @@
       return (
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/device/device1" element={<DevicePage />} />
+            <Route path="/" element={<DevicePage />} />
           </Routes>
         </BrowserRouter>
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
 </html>
