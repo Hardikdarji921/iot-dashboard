@@ -12,18 +12,27 @@
 </head>
 <body>
   <div id="root"><div class="loading">Loading...</div></div>
-  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-router-dom@6.26.2/dist/umd/react-router-dom.min.js"></script>
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/react-router-dom@6.26.2/dist/umd/react-router-dom.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
   <script type="text/babel">
-    if (!window.React || !window.ReactDOM || !window.ReactRouterDOM || !window.firebase || !window.Recharts || !window.Papa) {
-      document.getElementById('root').innerHTML = '<div class="error-boundary">Failed to load required scripts. Please check your network and try again.</div>';
-      throw new Error('Missing dependencies');
+    // Detailed dependency check
+    const missingScripts = [];
+    if (!window.React) missingScripts.push('React');
+    if (!window.ReactDOM) missingScripts.push('ReactDOM');
+    if (!window.ReactRouterDOM) missingScripts.push('ReactRouterDOM');
+    if (!window.firebase) missingScripts.push('Firebase');
+    if (!window.Recharts) missingScripts.push('Recharts');
+    if (!window.Papa) missingScripts.push('PapaParse');
+    if (!window.Babel) missingScripts.push('Babel');
+    if (missingScripts.length > 0) {
+      document.getElementById('root').innerHTML = `<div class="error-boundary">Failed to load scripts: ${missingScripts.join(', ')}. Please check your network and try again.</div>`;
+      throw new Error(`Missing dependencies: ${missingScripts.join(', ')}`);
     }
 
     const { useState, useEffect } = React;
@@ -31,13 +40,13 @@
     const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } = Recharts;
 
     const firebaseConfig = {
-      apiKey: "AIzaSyDcRpos41afSTVavx3ZqFECcGW-2phqhNQ",
-      authDomain: "sensor-monitoring-a093a.firebaseapp.com",
-      databaseURL: "https://sensor-monitoring-a093a-default-rtdb.firebaseio.com",
-      projectId: "sensor-monitoring-a093a",
-      storageBucket: "sensor-monitoring-a093a.appspot.com",
-      messagingSenderId: "660525836251",
-      appId: "1:660525836251:web:6281777b8417b22c1a29fe"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      databaseURL: "YOUR_DATABASE_URL",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
     let database;
